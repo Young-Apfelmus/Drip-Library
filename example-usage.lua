@@ -10,6 +10,7 @@ local icon = Drip.icon
 local window = Drip:CreateWindow({
 	Title = "Drip Library",
 	Subtitle = "Black / White + Lucide",
+	ToggleBind = Enum.KeyCode.RightShift,
 })
 
 local main = window:Tab("Main", icon "home")

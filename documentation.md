@@ -82,6 +82,7 @@ Creates a draggable window and returns a `Window` object.
 - `Parent` (`Instance`) custom GUI parent
 - `DisplayOrder` (number) default `500`
 - `Theme` (table) optional color overrides
+- `ToggleBind` (`Enum.KeyCode` or string) hide/unhide bind, default `Enum.KeyCode.RightShift`
 
 Returns: `Window`
 
@@ -118,6 +119,22 @@ Alias of `Window:Tab`.
 ## `Window:Destroy()`
 
 Destroys the root `ScreenGui`.
+
+## `Window:SetToggleBind(bindValue)`
+
+Sets runtime hide/unhide keybind. Accepts `Enum.KeyCode` or key name string.
+
+## `Window:GetToggleBind()`
+
+Returns current hide/unhide keybind.
+
+## `Window:SetVisible(boolean)`
+
+Shows or hides the UI window.
+
+## `Window:IsVisible()`
+
+Returns whether the UI window is currently visible.
 
 ---
 

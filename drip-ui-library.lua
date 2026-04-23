@@ -17,8 +17,9 @@ local BASE_TWEEN = TweenInfo.new(0.42, Enum.EasingStyle.Quad, Enum.EasingDirecti
 local HOVER_TWEEN = TweenInfo.new(0.26, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local FAST_TWEEN = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local TOGGLE_TWEEN = TweenInfo.new(0.32, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-local DRAG_TWEEN = TweenInfo.new(0.24, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+local DRAG_TWEEN = TweenInfo.new(0.42, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 local INDICATOR_TWEEN = TweenInfo.new(0.46, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+local DEFAULT_TOGGLE_BIND = Enum.KeyCode.RightShift
 
 local DEFAULT_THEME = {
 	Background = Color3.fromRGB(8, 8, 8),
@@ -81,6 +82,32 @@ local function parseIconName(inputValue)
 	end
 
 	return nil
+end
+
+local function normalizeKeyCodeName(name)
+	return string.lower((name or ""):gsub("[%s_%-]", ""))
+end
+
+local function parseToggleBind(bindValue)
+	if typeof(bindValue) == "EnumItem" and bindValue.EnumType == Enum.KeyCode then
+		return bindValue
+	end
+
+	if type(bindValue) == "string" and bindValue ~= "" then
+		local direct = Enum.KeyCode[bindValue]
+		if direct then
+			return direct
+		end
+
+		local normalized = normalizeKeyCodeName(bindValue)
+		for _, keyCode in ipairs(Enum.KeyCode:GetEnumItems()) do
+			if normalizeKeyCodeName(keyCode.Name) == normalized then
+				return keyCode
+			end
+		end
+	end
+
+	return DEFAULT_TOGGLE_BIND
 end
 
 local function fetchRemoteText(url)
@@ -448,7 +475,7 @@ function DripUI:CreateWindow(options)
 		AnchorPoint = Vector2.new(0, 0.5),
 		BackgroundColor3 = theme.Accent,
 		BorderSizePixel = 0,
-		Position = UDim2.fromOffset(1, 24),
+		Position = UDim2.fromOffset(8, 24),
 		Size = UDim2.fromOffset(3, 18),
 		Visible = false,
 		ZIndex = 3,
@@ -480,6 +507,9 @@ function DripUI:CreateWindow(options)
 	local dragWindowPosition
 	local dragTween
 	local scriptStartTime = os.clock()
+	local toggleBind = parseToggleBind(options.ToggleBind or options.toggleBind or options.UiToggleBind or options.HideBind)
+	local dragInputConnection
+	local toggleInputConnection
 
 	topBar.InputBegan:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
@@ -498,7 +528,7 @@ function DripUI:CreateWindow(options)
 		end)
 	end)
 
-	UserInputService.InputChanged:Connect(function(input)
+	dragInputConnection = UserInputService.InputChanged:Connect(function(input)
 		if not dragging then
 			return
 		end
@@ -529,13 +559,33 @@ function DripUI:CreateWindow(options)
 		_library = self,
 		_lucide = self._lucide,
 		_root = root,
+		_frame = frame,
 		_tabs = {},
 		_tabRail = tabRail,
 		_tabList = tabList,
 		_activeTabIndicator = activeTabIndicator,
 		_contentArea = contentArea,
 		_activeTab = nil,
+		_isVisible = true,
+		_toggleBind = toggleBind,
+		_dragInputConnection = dragInputConnection,
+		_toggleInputConnection = nil,
 	}, Window)
+
+	toggleInputConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed then
+			return
+		end
+
+		if UserInputService:GetFocusedTextBox() then
+			return
+		end
+
+		if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == windowObject._toggleBind then
+			windowObject:SetVisible(not windowObject._isVisible)
+		end
+	end)
+	windowObject._toggleInputConnection = toggleInputConnection
 
 	tabList:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
 		if windowObject._activeTab then
@@ -623,7 +673,7 @@ function Window:_moveActiveIndicator(tabObject, instant)
 
 	local centerY = (button.AbsolutePosition.Y - self._tabRail.AbsolutePosition.Y) + (button.AbsoluteSize.Y * 0.5)
 	local target = {
-		Position = UDim2.fromOffset(1, math.floor(centerY + 0.5)),
+		Position = UDim2.fromOffset(8, math.floor(centerY + 0.5)),
 		Size = UDim2.fromOffset(3, math.max(14, button.AbsoluteSize.Y - 16)),
 		BackgroundTransparency = 0,
 	}
@@ -811,7 +861,38 @@ end
 
 Window.CreateTab = Window.Tab
 
+function Window:SetVisible(isVisible)
+	self._isVisible = isVisible and true or false
+	if self._frame then
+		self._frame.Visible = self._isVisible
+	end
+	return self._isVisible
+end
+
+function Window:IsVisible()
+	return self._isVisible == true
+end
+
+function Window:SetToggleBind(bindValue)
+	self._toggleBind = parseToggleBind(bindValue)
+	return self._toggleBind
+end
+
+function Window:GetToggleBind()
+	return self._toggleBind or DEFAULT_TOGGLE_BIND
+end
+
 function Window:Destroy()
+	if self._toggleInputConnection then
+		self._toggleInputConnection:Disconnect()
+		self._toggleInputConnection = nil
+	end
+
+	if self._dragInputConnection then
+		self._dragInputConnection:Disconnect()
+		self._dragInputConnection = nil
+	end
+
 	if self._root and self._root.Parent then
 		self._root:Destroy()
 	end

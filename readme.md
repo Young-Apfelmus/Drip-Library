@@ -39,6 +39,7 @@ local icon = Drip.icon
 local window = Drip:CreateWindow({
 	Title = "Drip UI",
 	Subtitle = "Black / White",
+	ToggleBind = Enum.KeyCode.RightShift, -- default if omitted
 })
 
 local main = window:Tab("Main", icon "home")
@@ -55,3 +56,8 @@ main:Button({
 - `drip-ui-library.lua`: Main library
 - `example-usage.lua`: Full usage example
 - `documentation.md`: Full API + behavior docs
+
+## Toggle Keybind
+
+- UI hide/unhide keybind is configurable via `ToggleBind` in `CreateWindow`.
+- Default bind is `Enum.KeyCode.RightShift` when not provided.
