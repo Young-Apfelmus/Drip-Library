@@ -1,28 +1,8 @@
 local Drip = loadstring(game:HttpGet("https://raw.githubusercontent.com/Young-Apfelmus/Drip-Library/main/drip-ui-library.lua"))()
 
-local function loadLucide()
-	local ReplicatedStorage = game:GetService("ReplicatedStorage")
-	local lucideModule = ReplicatedStorage:FindFirstChild("Lucide")
-
-	if lucideModule and lucideModule:IsA("ModuleScript") then
-		local ok, lib = pcall(require, lucideModule)
-		if ok and type(lib) == "table" then
-			return lib
-		end
-	end
-
-	local ok, lib = pcall(require, 15279939717)
-	if ok and type(lib) == "table" then
-		return lib
-	end
-
-	warn("[Drip Library] Lucide was not found. Add a ModuleScript named 'Lucide' to ReplicatedStorage, or ensure require(15279939717) works.")
-	return nil
-end
-
-local Lucide = loadLucide()
-if Lucide then
-	Drip:SetLucide(Lucide)
+local lucide = Drip:AutoLoadLucide()
+if not lucide then
+	warn("[Drip Library] Could not load lucide-roblox from GitHub release source.")
 end
 
 local icon = Drip.icon
@@ -59,5 +39,5 @@ local settings = window:Tab({
 
 settings:Paragraph({
 	Title = "Info",
-	Text = "Import lucide-roblox in your place and call Drip:SetLucide(Lucide) once before creating tabs.",
+	Text = "Executor mode: icons are auto-loaded from the official lucide-roblox GitHub release source.",
 })

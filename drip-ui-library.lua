@@ -31,6 +31,11 @@ local DEFAULT_THEME = {
 	StrokeTransparency = 0.84,
 }
 
+local LUCIDE_REMOTE_SOURCES = {
+	"https://github.com/latte-soft/lucide-roblox/releases/latest/download/lucide-roblox.luau",
+	"https://raw.githubusercontent.com/latte-soft/lucide-roblox/master/lucide-roblox.luau",
+}
+
 local HAS_CANVAS_GROUP = pcall(function()
 	local probe = Instance.new("CanvasGroup")
 	probe:Destroy()
@@ -73,6 +78,57 @@ local function parseIconName(inputValue)
 
 	if type(inputValue) == "string" then
 		return inputValue
+	end
+
+	return nil
+end
+
+local function fetchRemoteText(url)
+	local okHttpGetMethod, httpGetMethod = pcall(function()
+		return game.HttpGet
+	end)
+
+	if okHttpGetMethod and type(httpGetMethod) == "function" then
+		local ok, body = pcall(httpGetMethod, game, url)
+		if ok and type(body) == "string" and body ~= "" then
+			return body
+		end
+	end
+
+	local okHttpGetCall, bodyFromCall = pcall(function()
+		return game:HttpGet(url)
+	end)
+	if okHttpGetCall and type(bodyFromCall) == "string" and bodyFromCall ~= "" then
+		return bodyFromCall
+	end
+
+	local requestMethods = {}
+	if type(request) == "function" then
+		table.insert(requestMethods, request)
+	end
+	if type(http_request) == "function" then
+		table.insert(requestMethods, http_request)
+	end
+	if type(syn) == "table" and type(syn.request) == "function" then
+		table.insert(requestMethods, syn.request)
+	end
+	if type(http) == "table" and type(http.request) == "function" then
+		table.insert(requestMethods, http.request)
+	end
+
+	for _, requestFn in ipairs(requestMethods) do
+		local ok, response = pcall(requestFn, {
+			Url = url,
+			Method = "GET",
+		})
+
+		if ok and type(response) == "table" then
+			local body = response.Body or response.body
+			local statusCode = response.StatusCode or response.Status
+			if type(body) == "string" and body ~= "" and (statusCode == nil or statusCode == 200) then
+				return body
+			end
+		end
 	end
 
 	return nil
@@ -189,13 +245,28 @@ function DripUI:SetLucide(lucideModule)
 	return self
 end
 
-function DripUI:_tryRequireLucide(target)
-	local ok, moduleResult = pcall(require, target)
-	if not ok then
+function DripUI:_tryLoadLucideFromGitHub()
+	if type(loadstring) ~= "function" then
 		return nil
 	end
 
-	return resolveLucideExport(moduleResult)
+	for _, sourceUrl in ipairs(LUCIDE_REMOTE_SOURCES) do
+		local source = fetchRemoteText(sourceUrl)
+		if source then
+			local okLoad, chunkOrError = pcall(loadstring, source)
+			if okLoad and type(chunkOrError) == "function" then
+				local okRun, moduleResult = pcall(chunkOrError)
+				if okRun then
+					local resolved = resolveLucideExport(moduleResult)
+					if resolved then
+						return resolved
+					end
+				end
+			end
+		end
+	end
+
+	return nil
 end
 
 function DripUI:AutoLoadLucide()
@@ -203,23 +274,9 @@ function DripUI:AutoLoadLucide()
 		return self._lucide
 	end
 
-	local ReplicatedStorage = game:GetService("ReplicatedStorage")
-	local moduleNames = { "Lucide", "lucide", "LucideIcons", "lucide-icons" }
-
-	for _, moduleName in ipairs(moduleNames) do
-		local moduleScript = ReplicatedStorage:FindFirstChild(moduleName, true)
-		if moduleScript and moduleScript:IsA("ModuleScript") then
-			local fromModule = self:_tryRequireLucide(moduleScript)
-			if fromModule then
-				self._lucide = fromModule
-				return self._lucide
-			end
-		end
-	end
-
-	local fromMarketplace = self:_tryRequireLucide(15279939717)
-	if fromMarketplace then
-		self._lucide = fromMarketplace
+	local fromGithub = self:_tryLoadLucideFromGitHub()
+	if fromGithub then
+		self._lucide = fromGithub
 		return self._lucide
 	end
 
@@ -391,7 +448,7 @@ function DripUI:CreateWindow(options)
 		AnchorPoint = Vector2.new(0, 0.5),
 		BackgroundColor3 = theme.Accent,
 		BorderSizePixel = 0,
-		Position = UDim2.fromOffset(5, 24),
+		Position = UDim2.fromOffset(1, 24),
 		Size = UDim2.fromOffset(3, 18),
 		Visible = false,
 		ZIndex = 3,
@@ -566,7 +623,7 @@ function Window:_moveActiveIndicator(tabObject, instant)
 
 	local centerY = (button.AbsolutePosition.Y - self._tabRail.AbsolutePosition.Y) + (button.AbsoluteSize.Y * 0.5)
 	local target = {
-		Position = UDim2.fromOffset(5, math.floor(centerY + 0.5)),
+		Position = UDim2.fromOffset(1, math.floor(centerY + 0.5)),
 		Size = UDim2.fromOffset(3, math.max(14, button.AbsoluteSize.Y - 16)),
 		BackgroundTransparency = 0,
 	}
@@ -603,7 +660,7 @@ function Window:_activateTab(tabObject)
 		end
 
 		tween(tab.TabButton, BASE_TWEEN, {
-			BackgroundTransparency = active and 0.92 or 1,
+			BackgroundTransparency = 1,
 		})
 
 		tween(tab.TitleLabel, BASE_TWEEN, {
@@ -725,14 +782,18 @@ function Window:Tab(nameOrOptions, maybeIcon)
 	}, Tab)
 
 	button.MouseEnter:Connect(function()
+		tween(button, HOVER_TWEEN, { BackgroundTransparency = 1 })
 		if self._activeTab ~= tabObject then
-			tween(button, HOVER_TWEEN, { BackgroundTransparency = 0.975 })
+			tween(titleLabel, HOVER_TWEEN, { TextColor3 = self._theme.Text })
+			self:_tweenIconColor(iconObject, self._theme.Text)
 		end
 	end)
 
 	button.MouseLeave:Connect(function()
+		tween(button, HOVER_TWEEN, { BackgroundTransparency = 1 })
 		if self._activeTab ~= tabObject then
-			tween(button, HOVER_TWEEN, { BackgroundTransparency = 1 })
+			tween(titleLabel, HOVER_TWEEN, { TextColor3 = self._theme.TextMuted })
+			self:_tweenIconColor(iconObject, self._theme.TextMuted)
 		end
 	end)
 
