@@ -352,7 +352,7 @@ function DripUI:CreateWindow(options)
 	local railWidth = options.TabRailWidth or options.RailWidth or (isMobile and 154 or 186)
 	local railBottomInset = options.TabRailBottomInset or 0
 	local profileCardHeight = isMobile and 56 or 58
-	local profileBottomPadding = isMobile and 4 or 4
+	local profileBottomPadding = isMobile and 8 or 8
 	local tabListBottomPadding = profileCardHeight + profileBottomPadding + 6
 	local defaultSize = isMobile and UDim2.fromScale(0.9, 0.74) or UDim2.fromOffset(620, 390)
 	local loadInConfig = makeLoadInConfig(options.LoadInAnimation or options.LoadIn or options.Animation)
@@ -432,6 +432,27 @@ function DripUI:CreateWindow(options)
 		Parent = frame,
 	})
 	applyCorner(tabRail, 14)
+
+	make("Frame", {
+		Name = "RailRightCornerFixTop",
+		BackgroundColor3 = theme.Surface,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(railWidth - 14, topBarHeight),
+		Size = UDim2.fromOffset(14, 14),
+		ZIndex = 2,
+		Parent = frame,
+	})
+
+	make("Frame", {
+		Name = "RailRightCornerFixBottom",
+		AnchorPoint = Vector2.new(0, 1),
+		BackgroundColor3 = theme.Surface,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, railWidth - 14, 1, -railBottomInset),
+		Size = UDim2.fromOffset(14, 14),
+		ZIndex = 2,
+		Parent = frame,
+	})
 
 	make("Frame", {
 		Name = "RailTopFill",
