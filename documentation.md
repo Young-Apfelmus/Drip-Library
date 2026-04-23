@@ -77,12 +77,17 @@ Creates a draggable window and returns a `Window` object.
 
 - `Title` (string) window title
 - `Subtitle` (string) subtitle below title
-- `Size` (`UDim2`) default `UDim2.fromOffset(720, 450)`
+- `Size` (`UDim2`) default desktop `UDim2.fromOffset(620, 390)` with mobile-responsive scale fallback
 - `Position` (`UDim2`) default centered
 - `Parent` (`Instance`) custom GUI parent
 - `DisplayOrder` (number) default `500`
 - `Theme` (table) optional color overrides
 - `ToggleBind` (`Enum.KeyCode` or string) hide/unhide bind, default `Enum.KeyCode.RightShift`
+- `LoadInAnimation` (table) window intro animation settings
+  - `Enabled` (boolean)
+  - `Duration` (number)
+  - `FromScale` (number)
+  - `FromOffsetY` (number)
 
 Returns: `Window`
 
@@ -136,6 +141,10 @@ Shows or hides the UI window.
 
 Returns whether the UI window is currently visible.
 
+## `Window:PlayLoadIn(animationOptions?)`
+
+Plays/replays smooth load-in animation and optionally overrides animation config.
+
 ---
 
 ## 6. Tab API
@@ -147,6 +156,34 @@ Adds a section header label.
 ## `Tab:Label(text)`
 
 Adds a plain info label line.
+
+## `Tab:Dropdown({ Title, Options, Default?, Callback? })`
+
+Adds an expandable dropdown selector.
+
+Returns controller:
+
+- `controller:Set(value, fireCallback?)`
+- `controller:Get()`
+- `controller:SetOptions(newOptions)`
+
+## `Tab:ColorPicker({ Title, Default?, Callback? })`
+
+Adds an expandable RGB color picker.
+
+Returns controller:
+
+- `controller:Set(Color3, fireCallback?)`
+- `controller:Get()` -> `Color3`
+
+## `Tab:KeyBinder({ Title, Default?, Callback?, ChangedCallback? })`
+
+Adds a keybind control that can capture and update keyboard binds.
+
+Returns controller:
+
+- `controller:Set(Enum.KeyCode|string)`
+- `controller:Get()` -> `Enum.KeyCode`
 
 ## `Tab:Paragraph({ Title, Text })`
 

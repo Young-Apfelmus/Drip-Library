@@ -11,6 +11,12 @@ local window = Drip:CreateWindow({
 	Title = "Drip Library",
 	Subtitle = "Black / White + Lucide",
 	ToggleBind = Enum.KeyCode.RightShift,
+	LoadInAnimation = {
+		Enabled = true,
+		Duration = 0.65,
+		FromScale = 0.9,
+		FromOffsetY = 20,
+	},
 })
 
 local main = window:Tab("Main", icon "home")
@@ -30,6 +36,34 @@ main:Toggle({
 	Default = false,
 	Callback = function(state)
 		print("Toggle state:", state)
+	end,
+})
+
+main:Dropdown({
+	Title = "Theme Mode",
+	Options = { "Default", "Compact", "Clean" },
+	Default = "Default",
+	Callback = function(selected)
+		print("Dropdown selected:", selected)
+	end,
+})
+
+main:ColorPicker({
+	Title = "Accent Color",
+	Default = Color3.fromRGB(255, 255, 255),
+	Callback = function(color)
+		print("Color:", color)
+	end,
+})
+
+main:KeyBinder({
+	Title = "Action Key",
+	Default = Enum.KeyCode.E,
+	Callback = function(key)
+		print("Key pressed:", key.Name)
+	end,
+	ChangedCallback = function(newKey)
+		print("Key changed:", newKey.Name)
 	end,
 })
 
