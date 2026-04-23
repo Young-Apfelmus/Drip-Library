@@ -350,8 +350,10 @@ function DripUI:CreateWindow(options)
 	local isMobile = UserInputService.TouchEnabled and (not UserInputService.KeyboardEnabled or not UserInputService.MouseEnabled)
 	local topBarHeight = options.TopBarHeight or (isMobile and 50 or 54)
 	local railWidth = options.TabRailWidth or options.RailWidth or (isMobile and 154 or 186)
-	local railBottomInset = options.TabRailBottomInset or 6
+	local railBottomInset = options.TabRailBottomInset or 8
 	local profileCardHeight = isMobile and 56 or 58
+	local profileBottomPadding = isMobile and 10 or 12
+	local tabListBottomPadding = profileCardHeight + profileBottomPadding + 8
 	local defaultSize = isMobile and UDim2.fromScale(0.9, 0.74) or UDim2.fromOffset(620, 390)
 	local loadInConfig = makeLoadInConfig(options.LoadInAnimation or options.LoadIn or options.Animation)
 	local root = make("ScreenGui", {
@@ -451,7 +453,7 @@ function DripUI:CreateWindow(options)
 		ScrollBarImageColor3 = Color3.fromRGB(255, 255, 255),
 		ScrollBarImageTransparency = 0.7,
 		ScrollBarThickness = 2,
-		Size = UDim2.new(1, -14, 1, -(profileCardHeight + 24)),
+		Size = UDim2.new(1, -14, 1, -tabListBottomPadding),
 		Parent = tabRail,
 	})
 
@@ -463,7 +465,7 @@ function DripUI:CreateWindow(options)
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
 		AnchorPoint = Vector2.new(0, 1),
-		Position = UDim2.new(0, 8, 1, -8),
+		Position = UDim2.new(0, 8, 1, -profileBottomPadding),
 		Size = UDim2.new(1, -16, 0, profileCardHeight),
 		Parent = tabRail,
 	})
@@ -1310,6 +1312,7 @@ function Tab:ColorPicker(config)
 		Size = UDim2.new(1, -34, 0, pickerHeight),
 		Parent = pickerContent,
 	})
+	saturationValueArea.ClipsDescendants = true
 	applyCorner(saturationValueArea, 10)
 	applyStroke(saturationValueArea, 0.76)
 
@@ -1369,6 +1372,7 @@ function Tab:ColorPicker(config)
 		Size = UDim2.fromOffset(22, pickerHeight),
 		Parent = pickerContent,
 	})
+	hueBar.ClipsDescendants = true
 	applyCorner(hueBar, 11)
 	applyStroke(hueBar, 0.76)
 	make("UIGradient", {
@@ -1424,11 +1428,29 @@ function Tab:ColorPicker(config)
 	local function updatePickerVisuals()
 		local color = Color3.fromHSV(hue, saturation, value)
 		local r, g, b = colorToRgb(color)
+		local satWidth = math.max(1, saturationValueArea.AbsoluteSize.X)
+		local satHeight = math.max(1, saturationValueArea.AbsoluteSize.Y)
+		local satCursorWidth = math.max(1, saturationValueCursor.AbsoluteSize.X > 0 and saturationValueCursor.AbsoluteSize.X or saturationValueCursor.Size.X.Offset)
+		local satCursorHeight = math.max(1, saturationValueCursor.AbsoluteSize.Y > 0 and saturationValueCursor.AbsoluteSize.Y or saturationValueCursor.Size.Y.Offset)
+		local satPaddingX = satCursorWidth * 0.5
+		local satPaddingY = satCursorHeight * 0.5
+		local satTravelX = math.max(0, satWidth - (satPaddingX * 2))
+		local satTravelY = math.max(0, satHeight - (satPaddingY * 2))
+		local satX = satPaddingX + (clampUnit(saturation) * satTravelX)
+		local satY = satPaddingY + (clampUnit(1 - value) * satTravelY)
+
+		local hueWidth = math.max(1, hueBar.AbsoluteSize.X)
+		local hueHeight = math.max(1, hueBar.AbsoluteSize.Y)
+		local hueCursorHeight = math.max(1, hueCursor.AbsoluteSize.Y > 0 and hueCursor.AbsoluteSize.Y or hueCursor.Size.Y.Offset)
+		local huePaddingY = hueCursorHeight * 0.5
+		local hueTravelY = math.max(0, hueHeight - (huePaddingY * 2))
+		local hueY = huePaddingY + (clampUnit(hue) * hueTravelY)
+		local hueX = hueWidth * 0.5
 
 		preview.BackgroundColor3 = color
 		saturationValueArea.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
-		saturationValueCursor.Position = UDim2.new(clampUnit(saturation), 0, clampUnit(1 - value), 0)
-		hueCursor.Position = UDim2.new(0.5, 0, clampUnit(hue), 0)
+		saturationValueCursor.Position = UDim2.fromOffset(math.floor(satX + 0.5), math.floor(satY + 0.5))
+		hueCursor.Position = UDim2.fromOffset(math.floor(hueX + 0.5), math.floor(hueY + 0.5))
 		valueLabel.Text = string.format("#%02X%02X%02X  (%d, %d, %d)", r, g, b, r, g, b)
 	end
 
@@ -1487,6 +1509,9 @@ function Tab:ColorPicker(config)
 		updatePickerVisuals()
 		emitColorChanged(fireCallback)
 	end)
+
+	saturationValueArea:GetPropertyChangedSignal("AbsoluteSize"):Connect(updatePickerVisuals)
+	hueBar:GetPropertyChangedSignal("AbsoluteSize"):Connect(updatePickerVisuals)
 
 	updatePickerVisuals()
 
