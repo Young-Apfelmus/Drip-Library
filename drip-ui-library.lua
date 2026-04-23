@@ -437,10 +437,9 @@ function DripUI:CreateWindow(options)
 		Name = "RailRightCornerFixTop",
 		BackgroundColor3 = theme.Surface,
 		BorderSizePixel = 0,
-		Position = UDim2.fromOffset(railWidth - 14, topBarHeight),
+		Position = UDim2.fromOffset(railWidth - 14, 0),
 		Size = UDim2.fromOffset(14, 14),
-		ZIndex = 2,
-		Parent = frame,
+		Parent = tabRail,
 	})
 
 	make("Frame", {
@@ -448,10 +447,9 @@ function DripUI:CreateWindow(options)
 		AnchorPoint = Vector2.new(0, 1),
 		BackgroundColor3 = theme.Surface,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0, railWidth - 14, 1, -railBottomInset),
+		Position = UDim2.new(0, railWidth - 14, 1, 0),
 		Size = UDim2.fromOffset(14, 14),
-		ZIndex = 2,
-		Parent = frame,
+		Parent = tabRail,
 	})
 
 	make("Frame", {
