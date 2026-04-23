@@ -350,7 +350,7 @@ function DripUI:CreateWindow(options)
 	local isMobile = UserInputService.TouchEnabled and (not UserInputService.KeyboardEnabled or not UserInputService.MouseEnabled)
 	local topBarHeight = options.TopBarHeight or (isMobile and 50 or 54)
 	local railWidth = options.TabRailWidth or options.RailWidth or (isMobile and 154 or 186)
-	local railBottomInset = options.TabRailBottomInset or 14
+	local railBottomInset = options.TabRailBottomInset or 4
 	local profileCardHeight = isMobile and 56 or 58
 	local profileBottomPadding = isMobile and 10 or 12
 	local tabListBottomPadding = profileCardHeight + profileBottomPadding + 8
@@ -431,19 +431,6 @@ function DripUI:CreateWindow(options)
 		Size = UDim2.new(0, railWidth, 1, -(topBarHeight + railBottomInset)),
 		Parent = frame,
 	})
-
-	local cornerGuardSize = math.max(16, railBottomInset + 6)
-	local bottomLeftCornerGuard = make("Frame", {
-		Name = "BottomLeftCornerGuard",
-		AnchorPoint = Vector2.new(0, 1),
-		BackgroundColor3 = theme.Background,
-		BorderSizePixel = 0,
-		Position = UDim2.new(0, 0, 1, 0),
-		Size = UDim2.fromOffset(cornerGuardSize, cornerGuardSize),
-		ZIndex = 5,
-		Parent = frame,
-	})
-	applyCorner(bottomLeftCornerGuard, 14)
 
 	make("Frame", {
 		Name = "RailDivider",
