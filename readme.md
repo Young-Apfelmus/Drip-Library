@@ -20,20 +20,58 @@ local Drip = loadstring(game:HttpGet("https://raw.githubusercontent.com/Young-Ap
 Use [`latte-soft/lucide-roblox`](https://github.com/latte-soft/lucide-roblox) in your game (for example inside `ReplicatedStorage`):
 
 ```lua
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Lucide = require(ReplicatedStorage:WaitForChild("Lucide"))
+local function loadLucide()
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local lucideModule = ReplicatedStorage:FindFirstChild("Lucide")
 
-Drip:SetLucide(Lucide)
+	if lucideModule and lucideModule:IsA("ModuleScript") then
+		local ok, lib = pcall(require, lucideModule)
+		if ok and type(lib) == "table" then
+			return lib
+		end
+	end
+
+	local ok, lib = pcall(require, 15279939717)
+	if ok and type(lib) == "table" then
+		return lib
+	end
+
+	return nil
+end
+
+local Lucide = loadLucide()
+if Lucide then
+	Drip:SetLucide(Lucide)
+end
 ```
 
 ## Quick Example
 
 ```lua
 local Drip = loadstring(game:HttpGet("https://raw.githubusercontent.com/Young-Apfelmus/Drip-Library/main/drip-ui-library.lua"))()
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Lucide = require(ReplicatedStorage:WaitForChild("Lucide"))
+local function loadLucide()
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local lucideModule = ReplicatedStorage:FindFirstChild("Lucide")
 
-Drip:SetLucide(Lucide)
+	if lucideModule and lucideModule:IsA("ModuleScript") then
+		local ok, lib = pcall(require, lucideModule)
+		if ok and type(lib) == "table" then
+			return lib
+		end
+	end
+
+	local ok, lib = pcall(require, 15279939717)
+	if ok and type(lib) == "table" then
+		return lib
+	end
+
+	return nil
+end
+
+local Lucide = loadLucide()
+if Lucide then
+	Drip:SetLucide(Lucide)
+end
 local icon = Drip.icon
 
 local window = Drip:CreateWindow({

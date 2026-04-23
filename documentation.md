@@ -26,10 +26,29 @@ local Drip = loadstring(game:HttpGet("https://raw.githubusercontent.com/Young-Ap
 Install/import [`lucide-roblox`](https://github.com/latte-soft/lucide-roblox), then:
 
 ```lua
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Lucide = require(ReplicatedStorage:WaitForChild("Lucide"))
+local function loadLucide()
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local lucideModule = ReplicatedStorage:FindFirstChild("Lucide")
 
-Drip:SetLucide(Lucide)
+	if lucideModule and lucideModule:IsA("ModuleScript") then
+		local ok, lib = pcall(require, lucideModule)
+		if ok and type(lib) == "table" then
+			return lib
+		end
+	end
+
+	local ok, lib = pcall(require, 15279939717)
+	if ok and type(lib) == "table" then
+		return lib
+	end
+
+	return nil
+end
+
+local Lucide = loadLucide()
+if Lucide then
+	Drip:SetLucide(Lucide)
+end
 ```
 
 The library uses `Lucide.ImageLabel(iconName, imageSize, overrides)` internally for tab icons.
