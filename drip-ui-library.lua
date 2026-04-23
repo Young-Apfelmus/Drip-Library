@@ -350,9 +350,9 @@ function DripUI:CreateWindow(options)
 	local isMobile = UserInputService.TouchEnabled and (not UserInputService.KeyboardEnabled or not UserInputService.MouseEnabled)
 	local topBarHeight = options.TopBarHeight or (isMobile and 50 or 54)
 	local railWidth = options.TabRailWidth or options.RailWidth or (isMobile and 154 or 186)
-	local railBottomInset = options.TabRailBottomInset or 4
+	local railBottomInset = options.TabRailBottomInset or 8
 	local profileCardHeight = isMobile and 56 or 58
-	local profileBottomPadding = isMobile and 10 or 12
+	local profileBottomPadding = isMobile and 12 or 14
 	local tabListBottomPadding = profileCardHeight + profileBottomPadding + 8
 	local defaultSize = isMobile and UDim2.fromScale(0.9, 0.74) or UDim2.fromOffset(620, 390)
 	local loadInConfig = makeLoadInConfig(options.LoadInAnimation or options.LoadIn or options.Animation)
