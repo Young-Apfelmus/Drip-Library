@@ -21,7 +21,11 @@ local DRAG_TWEEN = TweenInfo.new(0.42, Enum.EasingStyle.Quart, Enum.EasingDirect
 local INDICATOR_TWEEN = TweenInfo.new(0.46, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 local DEFAULT_TOGGLE_BIND = Enum.KeyCode.RightShift
 local DEFAULT_KEYBINDER_BIND = Enum.KeyCode.E
-local TYPEWRITER_STEP_DELAY = 0.03
+local TYPEWRITER_STEP_DELAY = 0.07
+local TYPEWRITER_START_DELAY = 0.35
+local TYPEWRITER_LOOP_DELAY = 8.5
+local TYPEWRITER_CURSOR = "|"
+local COLORPICKER_TWEEN = TweenInfo.new(0.36, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 
 local DEFAULT_THEME = {
 	Background = Color3.fromRGB(8, 8, 8),
@@ -344,7 +348,7 @@ function DripUI:CreateWindow(options)
 	local isMobile = UserInputService.TouchEnabled and (not UserInputService.KeyboardEnabled or not UserInputService.MouseEnabled)
 	local topBarHeight = options.TopBarHeight or (isMobile and 50 or 54)
 	local railWidth = options.TabRailWidth or options.RailWidth or (isMobile and 154 or 186)
-	local railBottomInset = options.TabRailBottomInset or (isMobile and 10 or 12)
+	local railBottomInset = options.TabRailBottomInset or 0
 	local profileCardHeight = isMobile and 56 or 58
 	local defaultSize = isMobile and UDim2.fromScale(0.9, 0.74) or UDim2.fromOffset(620, 390)
 	local loadInConfig = makeLoadInConfig(options.LoadInAnimation or options.LoadIn or options.Animation)
@@ -517,24 +521,30 @@ function DripUI:CreateWindow(options)
 		local token = usernameTypeToken
 		local fullText = tostring(text or "@unknown")
 
-		task.spawn(function()
-			usernameLabel.Text = ""
-			for index = 1, #fullText do
-				if token ~= usernameTypeToken or not root.Parent or not usernameLabel.Parent then
-					return
-				end
-
-				usernameLabel.Text = string.sub(fullText, 1, index)
-				task.wait(TYPEWRITER_STEP_DELAY)
+		usernameLabel.Text = ""
+		for index = 1, #fullText do
+			if token ~= usernameTypeToken or not root.Parent or not usernameLabel.Parent then
+				return
 			end
 
-			if token == usernameTypeToken and usernameLabel.Parent then
-				usernameLabel.Text = fullText
-			end
-		end)
+			local withCursor = index < #fullText
+			usernameLabel.Text = string.sub(fullText, 1, index) .. (withCursor and TYPEWRITER_CURSOR or "")
+			task.wait(TYPEWRITER_STEP_DELAY)
+		end
+
+		if token == usernameTypeToken and usernameLabel.Parent then
+			usernameLabel.Text = fullText
+		end
 	end
 
-	playUsernameTypewriter(usernameSource)
+	task.spawn(function()
+		task.wait(TYPEWRITER_START_DELAY)
+		while root.Parent do
+			playUsernameTypewriter(usernameSource)
+			local cycleDelay = math.max(TYPEWRITER_LOOP_DELAY, (#usernameSource * TYPEWRITER_STEP_DELAY) + 0.8)
+			task.wait(cycleDelay)
+		end
+	end)
 
 	local activeTabIndicator = make("Frame", {
 		Name = "ActiveTabIndicator",
@@ -1262,18 +1272,29 @@ function Tab:ColorPicker(config)
 
 	local pickerFrame = make("Frame", {
 		BackgroundTransparency = 1,
+		ClipsDescendants = true,
 		Position = UDim2.fromOffset(10, collapsedHeight),
 		Size = UDim2.new(1, -20, 0, 0),
 		Visible = false,
 		Parent = holder,
 	})
 
+	local pickerContentClass = HAS_CANVAS_GROUP and "CanvasGroup" or "Frame"
+	local pickerContent = make(pickerContentClass, {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Parent = pickerFrame,
+	})
+	if pickerContent:IsA("CanvasGroup") then
+		pickerContent.GroupTransparency = 1
+	end
+
 	local saturationValueArea = make("Frame", {
 		BackgroundColor3 = Color3.fromHSV(hue, 1, 1),
 		BorderSizePixel = 0,
 		Position = UDim2.fromOffset(0, 2),
 		Size = UDim2.new(1, -34, 0, pickerHeight),
-		Parent = pickerFrame,
+		Parent = pickerContent,
 	})
 	applyCorner(saturationValueArea, 10)
 	applyStroke(saturationValueArea, 0.76)
@@ -1332,7 +1353,7 @@ function Tab:ColorPicker(config)
 		BorderSizePixel = 0,
 		Position = UDim2.new(1, -22, 0, 2),
 		Size = UDim2.fromOffset(22, pickerHeight),
-		Parent = pickerFrame,
+		Parent = pickerContent,
 	})
 	applyCorner(hueBar, 11)
 	applyStroke(hueBar, 0.76)
@@ -1377,7 +1398,7 @@ function Tab:ColorPicker(config)
 		TextColor3 = self._theme.TextMuted,
 		TextSize = 11,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		Parent = pickerFrame,
+		Parent = pickerContent,
 	})
 
 	local function emitColorChanged(fireCallback)
@@ -1455,12 +1476,42 @@ function Tab:ColorPicker(config)
 
 	updatePickerVisuals()
 
+	local expandToken = 0
 	local function setExpanded(newState)
+		expandToken = expandToken + 1
+		local token = expandToken
 		expanded = newState and true or false
 		local targetHeight = expanded and (collapsedHeight + pickerContentHeight + 8) or collapsedHeight
-		pickerFrame.Visible = expanded
-		tween(holder, BASE_TWEEN, { Size = UDim2.new(1, 0, 0, targetHeight) })
-		tween(pickerFrame, BASE_TWEEN, { Size = UDim2.new(1, -20, 0, expanded and pickerContentHeight or 0) })
+
+		if expanded then
+			pickerFrame.Visible = true
+			pickerFrame.Position = UDim2.fromOffset(10, collapsedHeight + 4)
+			tween(holder, COLORPICKER_TWEEN, { Size = UDim2.new(1, 0, 0, targetHeight) })
+			tween(pickerFrame, COLORPICKER_TWEEN, {
+				Position = UDim2.fromOffset(10, collapsedHeight),
+				Size = UDim2.new(1, -20, 0, pickerContentHeight),
+			})
+			if pickerContent:IsA("CanvasGroup") then
+				pickerContent.GroupTransparency = 1
+				tween(pickerContent, COLORPICKER_TWEEN, { GroupTransparency = 0 })
+			end
+		else
+			tween(holder, COLORPICKER_TWEEN, { Size = UDim2.new(1, 0, 0, targetHeight) })
+			tween(pickerFrame, COLORPICKER_TWEEN, {
+				Position = UDim2.fromOffset(10, collapsedHeight + 4),
+				Size = UDim2.new(1, -20, 0, 0),
+			})
+			if pickerContent:IsA("CanvasGroup") then
+				tween(pickerContent, COLORPICKER_TWEEN, { GroupTransparency = 1 })
+			end
+			task.delay(COLORPICKER_TWEEN.Time + 0.03, function()
+				if token ~= expandToken or expanded then
+					return
+				end
+				pickerFrame.Visible = false
+				pickerFrame.Position = UDim2.fromOffset(10, collapsedHeight)
+			end)
+		end
 	end
 
 	headerButton.MouseButton1Click:Connect(function()
