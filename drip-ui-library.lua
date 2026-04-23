@@ -350,10 +350,10 @@ function DripUI:CreateWindow(options)
 	local isMobile = UserInputService.TouchEnabled and (not UserInputService.KeyboardEnabled or not UserInputService.MouseEnabled)
 	local topBarHeight = options.TopBarHeight or (isMobile and 50 or 54)
 	local railWidth = options.TabRailWidth or options.RailWidth or (isMobile and 154 or 186)
-	local railBottomInset = options.TabRailBottomInset or 8
+	local railBottomInset = options.TabRailBottomInset or 0
 	local profileCardHeight = isMobile and 56 or 58
-	local profileBottomPadding = isMobile and 12 or 14
-	local tabListBottomPadding = profileCardHeight + profileBottomPadding + 8
+	local profileBottomPadding = isMobile and 4 or 4
+	local tabListBottomPadding = profileCardHeight + profileBottomPadding + 6
 	local defaultSize = isMobile and UDim2.fromScale(0.9, 0.74) or UDim2.fromOffset(620, 390)
 	local loadInConfig = makeLoadInConfig(options.LoadInAnimation or options.LoadIn or options.Animation)
 	local root = make("ScreenGui", {
@@ -431,6 +431,15 @@ function DripUI:CreateWindow(options)
 		Size = UDim2.new(0, railWidth, 1, -(topBarHeight + railBottomInset)),
 		Parent = frame,
 	})
+	applyCorner(tabRail, 14)
+
+	make("Frame", {
+		Name = "RailTopFill",
+		BackgroundColor3 = theme.Surface,
+		BorderSizePixel = 0,
+		Size = UDim2.new(1, 0, 0, 14),
+		Parent = tabRail,
+	})
 
 	make("Frame", {
 		Name = "RailDivider",
@@ -465,8 +474,8 @@ function DripUI:CreateWindow(options)
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
 		AnchorPoint = Vector2.new(0, 1),
-		Position = UDim2.new(0, 8, 1, -profileBottomPadding),
-		Size = UDim2.new(1, -16, 0, profileCardHeight),
+		Position = UDim2.new(0, 10, 1, -profileBottomPadding),
+		Size = UDim2.new(1, -20, 0, profileCardHeight),
 		Parent = tabRail,
 	})
 	applyCorner(profileCard, 6)
