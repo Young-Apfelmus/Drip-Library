@@ -17,7 +17,7 @@ local BASE_TWEEN = TweenInfo.new(0.42, Enum.EasingStyle.Quad, Enum.EasingDirecti
 local HOVER_TWEEN = TweenInfo.new(0.26, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local FAST_TWEEN = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local TOGGLE_TWEEN = TweenInfo.new(0.32, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-local DRAG_TWEEN = TweenInfo.new(0.34, Enum.EasingStyle.Quart, Enum.EasingDirection.Out, 0, false, 0.05)
+local DRAG_TWEEN = TweenInfo.new(0.24, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 local INDICATOR_TWEEN = TweenInfo.new(0.46, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 
 local DEFAULT_THEME = {
@@ -73,6 +73,34 @@ local function parseIconName(inputValue)
 
 	if type(inputValue) == "string" then
 		return inputValue
+	end
+
+	return nil
+end
+
+local function formatRuntime(seconds)
+	local clamped = math.max(0, math.floor(seconds))
+	local hours = math.floor(clamped / 3600)
+	local minutes = math.floor((clamped % 3600) / 60)
+	local secs = clamped % 60
+	return string.format("%02d:%02d:%02d", hours, minutes, secs)
+end
+
+local function resolveLucideExport(moduleResult)
+	if type(moduleResult) ~= "table" then
+		return nil
+	end
+
+	if type(moduleResult.ImageLabel) == "function" then
+		return moduleResult
+	end
+
+	local nestedKeys = { "Lucide", "default", "Icons", "Module" }
+	for _, key in ipairs(nestedKeys) do
+		local nested = moduleResult[key]
+		if type(nested) == "table" and type(nested.ImageLabel) == "function" then
+			return nested
+		end
 	end
 
 	return nil
@@ -152,17 +180,56 @@ local function mergeTheme(overrides)
 end
 
 function DripUI:SetLucide(lucideModule)
-	if type(lucideModule) ~= "table" then
+	local resolved = resolveLucideExport(lucideModule)
+	if not resolved then
 		error("DripUI:SetLucide expects the Lucide module table", 2)
 	end
 
-	self._lucide = lucideModule
+	self._lucide = resolved
 	return self
+end
+
+function DripUI:_tryRequireLucide(target)
+	local ok, moduleResult = pcall(require, target)
+	if not ok then
+		return nil
+	end
+
+	return resolveLucideExport(moduleResult)
+end
+
+function DripUI:AutoLoadLucide()
+	if self._lucide then
+		return self._lucide
+	end
+
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local moduleNames = { "Lucide", "lucide", "LucideIcons", "lucide-icons" }
+
+	for _, moduleName in ipairs(moduleNames) do
+		local moduleScript = ReplicatedStorage:FindFirstChild(moduleName, true)
+		if moduleScript and moduleScript:IsA("ModuleScript") then
+			local fromModule = self:_tryRequireLucide(moduleScript)
+			if fromModule then
+				self._lucide = fromModule
+				return self._lucide
+			end
+		end
+	end
+
+	local fromMarketplace = self:_tryRequireLucide(15279939717)
+	if fromMarketplace then
+		self._lucide = fromMarketplace
+		return self._lucide
+	end
+
+	return nil
 end
 
 function DripUI:CreateWindow(options)
 	options = options or {}
 	local theme = mergeTheme(options.Theme)
+	self:AutoLoadLucide()
 	local root = make("ScreenGui", {
 		Name = options.Name or "DripLibrary",
 		DisplayOrder = options.DisplayOrder or 500,
@@ -238,16 +305,6 @@ function DripUI:CreateWindow(options)
 		Size = UDim2.new(0, 192, 1, -54),
 		Parent = frame,
 	})
-	applyCorner(tabRail, 14)
-
-	make("Frame", {
-		Name = "RailTopFill",
-		BackgroundColor3 = theme.Surface,
-		BorderSizePixel = 0,
-		Position = UDim2.fromOffset(0, 0),
-		Size = UDim2.new(1, 0, 0, 14),
-		Parent = tabRail,
-	})
 
 	make("Frame", {
 		Name = "RailDivider",
@@ -270,9 +327,64 @@ function DripUI:CreateWindow(options)
 		ScrollBarImageColor3 = Color3.fromRGB(255, 255, 255),
 		ScrollBarImageTransparency = 0.7,
 		ScrollBarThickness = 2,
-		Size = UDim2.new(1, -16, 1, -16),
+		Size = UDim2.new(1, -16, 1, -90),
 		Parent = tabRail,
 	})
+
+	local localPlayer = Players.LocalPlayer
+	local profileCard = make("Frame", {
+		Name = "ProfileCard",
+		BackgroundColor3 = theme.Panel,
+		BackgroundTransparency = 0.86,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 8, 1, -66),
+		Size = UDim2.new(1, -16, 0, 58),
+		Parent = tabRail,
+	})
+	applyStroke(profileCard, 0.78)
+
+	local avatarImage = make("ImageLabel", {
+		Name = "Avatar",
+		BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+		BackgroundTransparency = 0.1,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(8, 11),
+		Size = UDim2.fromOffset(36, 36),
+		Image = "",
+		ImageColor3 = Color3.fromRGB(255, 255, 255),
+		Parent = profileCard,
+	})
+	applyCorner(avatarImage, 4)
+
+	local usernameLabel = make("TextLabel", {
+		Name = "Username",
+		BackgroundTransparency = 1,
+		Font = Enum.Font.GothamSemibold,
+		Position = UDim2.fromOffset(52, 10),
+		Size = UDim2.new(1, -60, 0, 17),
+		Text = localPlayer and ("@" .. localPlayer.Name) or "@unknown",
+		TextColor3 = theme.TextStrong,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = profileCard,
+	})
+
+	local runtimeLabel = make("TextLabel", {
+		Name = "Runtime",
+		BackgroundTransparency = 1,
+		Font = Enum.Font.Gotham,
+		Position = UDim2.fromOffset(52, 29),
+		Size = UDim2.new(1, -60, 0, 16),
+		Text = "Uptime 00:00:00",
+		TextColor3 = theme.TextMuted,
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = profileCard,
+	})
+
+	if localPlayer then
+		avatarImage.Image = string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=100&h=100", localPlayer.UserId)
+	end
 
 	local activeTabIndicator = make("Frame", {
 		Name = "ActiveTabIndicator",
@@ -310,6 +422,7 @@ function DripUI:CreateWindow(options)
 	local dragStart
 	local dragWindowPosition
 	local dragTween
+	local scriptStartTime = os.clock()
 
 	topBar.InputBegan:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
@@ -356,6 +469,7 @@ function DripUI:CreateWindow(options)
 
 	local windowObject = setmetatable({
 		_theme = theme,
+		_library = self,
 		_lucide = self._lucide,
 		_root = root,
 		_tabs = {},
@@ -369,6 +483,16 @@ function DripUI:CreateWindow(options)
 	tabList:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
 		if windowObject._activeTab then
 			windowObject:_moveActiveIndicator(windowObject._activeTab, true)
+		end
+	end)
+
+	task.spawn(function()
+		while root.Parent do
+			runtimeLabel.Text = "Uptime " .. formatRuntime(os.clock() - scriptStartTime)
+			if localPlayer then
+				usernameLabel.Text = "@" .. localPlayer.Name
+			end
+			task.wait(1)
 		end
 	end)
 
@@ -390,6 +514,10 @@ end
 function Window:_renderTabIcon(iconName, parent, iconSize)
 	local size = iconSize or 18
 	local lucide = self._lucide
+	if not lucide and self._library then
+		lucide = self._library:AutoLoadLucide()
+		self._lucide = lucide
+	end
 
 	if type(iconName) == "string" and iconName ~= "" and type(lucide) == "table" and type(lucide.ImageLabel) == "function" then
 		local ok, iconObject = pcall(lucide.ImageLabel, iconName, size, {
