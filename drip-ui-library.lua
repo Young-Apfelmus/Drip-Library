@@ -21,6 +21,7 @@ local DRAG_TWEEN = TweenInfo.new(0.42, Enum.EasingStyle.Quart, Enum.EasingDirect
 local INDICATOR_TWEEN = TweenInfo.new(0.46, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 local DEFAULT_TOGGLE_BIND = Enum.KeyCode.RightShift
 local DEFAULT_KEYBINDER_BIND = Enum.KeyCode.E
+local TYPEWRITER_STEP_DELAY = 0.03
 
 local DEFAULT_THEME = {
 	Background = Color3.fromRGB(8, 8, 8),
@@ -178,8 +179,8 @@ local function colorToRgb(color)
 	return math.floor(color.R * 255 + 0.5), math.floor(color.G * 255 + 0.5), math.floor(color.B * 255 + 0.5)
 end
 
-local function clampRgb(value)
-	return math.clamp(math.floor(value + 0.5), 0, 255)
+local function clampUnit(value)
+	return math.clamp(tonumber(value) or 0, 0, 1)
 end
 
 local function makeLoadInConfig(animationOptions)
@@ -343,6 +344,8 @@ function DripUI:CreateWindow(options)
 	local isMobile = UserInputService.TouchEnabled and (not UserInputService.KeyboardEnabled or not UserInputService.MouseEnabled)
 	local topBarHeight = options.TopBarHeight or (isMobile and 50 or 54)
 	local railWidth = options.TabRailWidth or options.RailWidth or (isMobile and 154 or 186)
+	local railBottomInset = options.TabRailBottomInset or (isMobile and 10 or 12)
+	local profileCardHeight = isMobile and 56 or 58
 	local defaultSize = isMobile and UDim2.fromScale(0.9, 0.74) or UDim2.fromOffset(620, 390)
 	local loadInConfig = makeLoadInConfig(options.LoadInAnimation or options.LoadIn or options.Animation)
 	local root = make("ScreenGui", {
@@ -417,7 +420,7 @@ function DripUI:CreateWindow(options)
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
 		Position = UDim2.fromOffset(0, topBarHeight),
-		Size = UDim2.new(0, railWidth, 1, -topBarHeight),
+		Size = UDim2.new(0, railWidth, 1, -(topBarHeight + railBottomInset)),
 		Parent = frame,
 	})
 
@@ -438,11 +441,11 @@ function DripUI:CreateWindow(options)
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		CanvasSize = UDim2.fromOffset(0, 0),
-		Position = UDim2.fromOffset(10, 8),
+		Position = UDim2.fromOffset(8, 8),
 		ScrollBarImageColor3 = Color3.fromRGB(255, 255, 255),
 		ScrollBarImageTransparency = 0.7,
 		ScrollBarThickness = 2,
-		Size = UDim2.new(1, -16, 1, -90),
+		Size = UDim2.new(1, -14, 1, -(profileCardHeight + 24)),
 		Parent = tabRail,
 	})
 
@@ -452,10 +455,13 @@ function DripUI:CreateWindow(options)
 		BackgroundColor3 = theme.Panel,
 		BackgroundTransparency = 0.86,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0, 8, 1, -66),
-		Size = UDim2.new(1, -16, 0, 58),
+		ClipsDescendants = true,
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 8, 1, -8),
+		Size = UDim2.new(1, -16, 0, profileCardHeight),
 		Parent = tabRail,
 	})
+	applyCorner(profileCard, 6)
 	applyStroke(profileCard, 0.78)
 
 	local avatarImage = make("ImageLabel", {
@@ -476,10 +482,11 @@ function DripUI:CreateWindow(options)
 		BackgroundTransparency = 1,
 		Font = Enum.Font.GothamSemibold,
 		Position = UDim2.fromOffset(52, 10),
-		Size = UDim2.new(1, -60, 0, 17),
-		Text = localPlayer and ("@" .. localPlayer.Name) or "@unknown",
+		Size = UDim2.new(1, -68, 0, 17),
+		Text = "",
 		TextColor3 = theme.TextStrong,
 		TextSize = 12,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = profileCard,
 	})
@@ -489,10 +496,11 @@ function DripUI:CreateWindow(options)
 		BackgroundTransparency = 1,
 		Font = Enum.Font.Gotham,
 		Position = UDim2.fromOffset(52, 29),
-		Size = UDim2.new(1, -60, 0, 16),
+		Size = UDim2.new(1, -68, 0, 16),
 		Text = "Uptime 00:00:00",
 		TextColor3 = theme.TextMuted,
 		TextSize = 11,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = profileCard,
 	})
@@ -500,6 +508,33 @@ function DripUI:CreateWindow(options)
 	if localPlayer then
 		avatarImage.Image = string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=100&h=100", localPlayer.UserId)
 	end
+
+	local usernameSource = localPlayer and ("@" .. localPlayer.Name) or "@unknown"
+	local usernameTypeToken = 0
+
+	local function playUsernameTypewriter(text)
+		usernameTypeToken = usernameTypeToken + 1
+		local token = usernameTypeToken
+		local fullText = tostring(text or "@unknown")
+
+		task.spawn(function()
+			usernameLabel.Text = ""
+			for index = 1, #fullText do
+				if token ~= usernameTypeToken or not root.Parent or not usernameLabel.Parent then
+					return
+				end
+
+				usernameLabel.Text = string.sub(fullText, 1, index)
+				task.wait(TYPEWRITER_STEP_DELAY)
+			end
+
+			if token == usernameTypeToken and usernameLabel.Parent then
+				usernameLabel.Text = fullText
+			end
+		end)
+	end
+
+	playUsernameTypewriter(usernameSource)
 
 	local activeTabIndicator = make("Frame", {
 		Name = "ActiveTabIndicator",
@@ -633,9 +668,6 @@ function DripUI:CreateWindow(options)
 	task.spawn(function()
 		while root.Parent do
 			runtimeLabel.Text = "Uptime " .. formatRuntime(os.clock() - scriptStartTime)
-			if localPlayer then
-				usernameLabel.Text = "@" .. localPlayer.Name
-			end
 			task.wait(1)
 		end
 	end)
@@ -809,6 +841,7 @@ function Window:Tab(nameOrOptions, maybeIcon)
 		Text = title,
 		TextColor3 = self._theme.TextMuted,
 		TextSize = 13,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = button,
 	})
@@ -832,18 +865,18 @@ function Window:Tab(nameOrOptions, maybeIcon)
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		CanvasSize = UDim2.fromOffset(0, 0),
-		Position = UDim2.fromOffset(10, 10),
+		Position = UDim2.fromOffset(8, 10),
 		ScrollBarImageColor3 = Color3.fromRGB(255, 255, 255),
 		ScrollBarImageTransparency = 0.74,
 		ScrollBarThickness = 2,
-		Size = UDim2.new(1, -20, 1, -20),
+		Size = UDim2.new(1, -12, 1, -20),
 		Parent = page,
 	})
 
 	make("UIPadding", {
 		PaddingBottom = UDim.new(0, 4),
 		PaddingLeft = UDim.new(0, 2),
-		PaddingRight = UDim.new(0, 2),
+		PaddingRight = UDim.new(0, 8),
 		PaddingTop = UDim.new(0, 2),
 		Parent = body,
 	})
@@ -1190,9 +1223,10 @@ function Tab:ColorPicker(config)
 	local title = tostring(options.Title or options.title or "Color")
 	local callback = options.Callback or options.callback
 	local currentColor = typeof(options.Default) == "Color3" and options.Default or Color3.fromRGB(255, 255, 255)
-	local r, g, b = colorToRgb(currentColor)
+	local hue, saturation, value = currentColor:ToHSV()
 	local collapsedHeight = 44
-	local expandedHeight = 142
+	local pickerHeight = 166
+	local pickerContentHeight = pickerHeight + 24
 	local expanded = false
 
 	local holder = self:_createItemHolder(collapsedHeight)
@@ -1223,7 +1257,8 @@ function Tab:ColorPicker(config)
 		Size = UDim2.fromOffset(24, 24),
 		Parent = holder,
 	})
-	applyCorner(preview, 4)
+	applyCorner(preview, 6)
+	applyStroke(preview, 0.72)
 
 	local pickerFrame = make("Frame", {
 		BackgroundTransparency = 1,
@@ -1233,92 +1268,147 @@ function Tab:ColorPicker(config)
 		Parent = holder,
 	})
 
-	local sliderRows = {}
+	local saturationValueArea = make("Frame", {
+		BackgroundColor3 = Color3.fromHSV(hue, 1, 1),
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(0, 2),
+		Size = UDim2.new(1, -34, 0, pickerHeight),
+		Parent = pickerFrame,
+	})
+	applyCorner(saturationValueArea, 10)
+	applyStroke(saturationValueArea, 0.76)
 
-	local function makeSliderRow(name, rowIndex)
-		local y = (rowIndex - 1) * 30
-		local row = make("Frame", {
-			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(0, y),
-			Size = UDim2.new(1, 0, 0, 24),
-			Parent = pickerFrame,
-		})
+	local saturationOverlay = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+		Parent = saturationValueArea,
+	})
+	applyCorner(saturationOverlay, 10)
+	make("UIGradient", {
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+		Parent = saturationOverlay,
+	})
 
-		make("TextLabel", {
-			BackgroundTransparency = 1,
-			Font = Enum.Font.Gotham,
-			Position = UDim2.fromOffset(0, 4),
-			Size = UDim2.fromOffset(12, 14),
-			Text = name,
-			TextColor3 = self._theme.TextMuted,
-			TextSize = 12,
-			Parent = row,
-		})
+	local valueOverlay = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+		Parent = saturationValueArea,
+	})
+	applyCorner(valueOverlay, 10)
+	make("UIGradient", {
+		Rotation = 90,
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(1, 0),
+		}),
+		Parent = valueOverlay,
+	})
 
-		local bar = make("Frame", {
-			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-			BackgroundTransparency = 0.9,
-			BorderSizePixel = 0,
-			Position = UDim2.fromOffset(20, 10),
-			Size = UDim2.new(1, -60, 0, 4),
-			Parent = row,
-		})
-		applyCorner(bar, 4)
+	local saturationValueCursor = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		BorderSizePixel = 0,
+		Position = UDim2.new(0.5, 0, 0.5, 0),
+		Size = UDim2.fromOffset(14, 14),
+		ZIndex = 4,
+		Parent = saturationValueArea,
+	})
+	applyCorner(saturationValueCursor, 7)
+	make("UIStroke", {
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Color = Color3.fromRGB(0, 0, 0),
+		Transparency = 0.16,
+		Thickness = 1,
+		Parent = saturationValueCursor,
+	})
 
-		local fill = make("Frame", {
-			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-			BorderSizePixel = 0,
-			Size = UDim2.fromScale(0, 1),
-			Parent = bar,
-		})
-		applyCorner(fill, 4)
+	local hueBar = make("Frame", {
+		BackgroundColor3 = Color3.fromRGB(255, 0, 0),
+		BorderSizePixel = 0,
+		Position = UDim2.new(1, -22, 0, 2),
+		Size = UDim2.fromOffset(22, pickerHeight),
+		Parent = pickerFrame,
+	})
+	applyCorner(hueBar, 11)
+	applyStroke(hueBar, 0.76)
+	make("UIGradient", {
+		Rotation = 90,
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 0, 0)),
+			ColorSequenceKeypoint.new(0.16, Color3.fromRGB(255, 255, 0)),
+			ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 255, 0)),
+			ColorSequenceKeypoint.new(0.50, Color3.fromRGB(0, 255, 255)),
+			ColorSequenceKeypoint.new(0.66, Color3.fromRGB(0, 0, 255)),
+			ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 0, 255)),
+			ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 0, 0)),
+		}),
+		Parent = hueBar,
+	})
 
-		local valueLabel = make("TextLabel", {
-			BackgroundTransparency = 1,
-			Font = Enum.Font.Gotham,
-			Position = UDim2.new(1, -34, 0, 0),
-			Size = UDim2.fromOffset(34, 20),
-			Text = "0",
-			TextColor3 = self._theme.TextMuted,
-			TextSize = 11,
-			TextXAlignment = Enum.TextXAlignment.Right,
-			Parent = row,
-		})
+	local hueCursor = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		BorderSizePixel = 0,
+		Position = UDim2.new(0.5, 0, hue, 0),
+		Size = UDim2.fromOffset(18, 18),
+		ZIndex = 4,
+		Parent = hueBar,
+	})
+	applyCorner(hueCursor, 9)
+	make("UIStroke", {
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Color = Color3.fromRGB(0, 0, 0),
+		Transparency = 0.16,
+		Thickness = 1,
+		Parent = hueCursor,
+	})
 
-		return {
-			bar = bar,
-			fill = fill,
-			valueLabel = valueLabel,
-		}
+	local valueLabel = make("TextLabel", {
+		BackgroundTransparency = 1,
+		Font = Enum.Font.Gotham,
+		Position = UDim2.fromOffset(0, pickerHeight + 8),
+		Size = UDim2.new(1, 0, 0, 14),
+		Text = "",
+		TextColor3 = self._theme.TextMuted,
+		TextSize = 11,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = pickerFrame,
+	})
+
+	local function emitColorChanged(fireCallback)
+		if fireCallback then
+			safeCallback(callback, Color3.fromHSV(hue, saturation, value))
+		end
 	end
 
-	sliderRows.R = makeSliderRow("R", 1)
-	sliderRows.G = makeSliderRow("G", 2)
-	sliderRows.B = makeSliderRow("B", 3)
+	local function updatePickerVisuals()
+		local color = Color3.fromHSV(hue, saturation, value)
+		local r, g, b = colorToRgb(color)
 
-	local function updateSliderVisuals()
-		local function apply(row, value)
-			local ratio = value / 255
-			row.fill.Size = UDim2.fromScale(ratio, 1)
-			row.valueLabel.Text = tostring(value)
-		end
-
-		apply(sliderRows.R, r)
-		apply(sliderRows.G, g)
-		apply(sliderRows.B, b)
-		preview.BackgroundColor3 = Color3.fromRGB(r, g, b)
+		preview.BackgroundColor3 = color
+		saturationValueArea.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
+		saturationValueCursor.Position = UDim2.new(clampUnit(saturation), 0, clampUnit(1 - value), 0)
+		hueCursor.Position = UDim2.new(0.5, 0, clampUnit(hue), 0)
+		valueLabel.Text = string.format("#%02X%02X%02X  (%d, %d, %d)", r, g, b, r, g, b)
 	end
 
 	local function setColor(color, fireCallback)
-		r, g, b = colorToRgb(color)
-		updateSliderVisuals()
-		if fireCallback then
-			safeCallback(callback, Color3.fromRGB(r, g, b))
+		if typeof(color) ~= "Color3" then
+			return
 		end
+
+		hue, saturation, value = color:ToHSV()
+		updatePickerVisuals()
+		emitColorChanged(fireCallback)
 	end
 
-	local function bindSliderInput(row, setter)
-		row.bar.InputBegan:Connect(function(input)
+	local function bindDrag(guiObject, updateFromPosition)
+		guiObject.InputBegan:Connect(function(input)
 			if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
 				return
 			end
@@ -1326,20 +1416,11 @@ function Tab:ColorPicker(config)
 			local moveConnection
 			local endConnection
 
-			local function updateFromPosition(xPosition, fireCallback)
-				local ratio = math.clamp((xPosition - row.bar.AbsolutePosition.X) / math.max(1, row.bar.AbsoluteSize.X), 0, 1)
-				setter(clampRgb(ratio * 255))
-				updateSliderVisuals()
-				if fireCallback then
-					safeCallback(callback, Color3.fromRGB(r, g, b))
-				end
-			end
-
-			updateFromPosition(input.Position.X, true)
+			updateFromPosition(input.Position, true)
 
 			moveConnection = UserInputService.InputChanged:Connect(function(changedInput)
 				if changedInput.UserInputType == Enum.UserInputType.MouseMovement or changedInput.UserInputType == Enum.UserInputType.Touch then
-					updateFromPosition(changedInput.Position.X, true)
+					updateFromPosition(changedInput.Position, true)
 				end
 			end)
 
@@ -1356,24 +1437,30 @@ function Tab:ColorPicker(config)
 		end)
 	end
 
-	bindSliderInput(sliderRows.R, function(value)
-		r = value
-	end)
-	bindSliderInput(sliderRows.G, function(value)
-		g = value
-	end)
-	bindSliderInput(sliderRows.B, function(value)
-		b = value
+	bindDrag(saturationValueArea, function(pointerPosition, fireCallback)
+		local x = (pointerPosition.X - saturationValueArea.AbsolutePosition.X) / math.max(1, saturationValueArea.AbsoluteSize.X)
+		local y = (pointerPosition.Y - saturationValueArea.AbsolutePosition.Y) / math.max(1, saturationValueArea.AbsoluteSize.Y)
+		saturation = clampUnit(x)
+		value = 1 - clampUnit(y)
+		updatePickerVisuals()
+		emitColorChanged(fireCallback)
 	end)
 
-	updateSliderVisuals()
+	bindDrag(hueBar, function(pointerPosition, fireCallback)
+		local y = (pointerPosition.Y - hueBar.AbsolutePosition.Y) / math.max(1, hueBar.AbsoluteSize.Y)
+		hue = clampUnit(y)
+		updatePickerVisuals()
+		emitColorChanged(fireCallback)
+	end)
+
+	updatePickerVisuals()
 
 	local function setExpanded(newState)
 		expanded = newState and true or false
-		local targetHeight = expanded and expandedHeight or collapsedHeight
+		local targetHeight = expanded and (collapsedHeight + pickerContentHeight + 8) or collapsedHeight
 		pickerFrame.Visible = expanded
 		tween(holder, BASE_TWEEN, { Size = UDim2.new(1, 0, 0, targetHeight) })
-		tween(pickerFrame, BASE_TWEEN, { Size = UDim2.new(1, -20, 0, expanded and 90 or 0) })
+		tween(pickerFrame, BASE_TWEEN, { Size = UDim2.new(1, -20, 0, expanded and pickerContentHeight or 0) })
 	end
 
 	headerButton.MouseButton1Click:Connect(function()
@@ -1390,12 +1477,10 @@ function Tab:ColorPicker(config)
 
 	return {
 		Set = function(_, color, fireCallback)
-			if typeof(color) == "Color3" then
-				setColor(color, fireCallback == true)
-			end
+			setColor(color, fireCallback == true)
 		end,
 		Get = function()
-			return Color3.fromRGB(r, g, b)
+			return Color3.fromHSV(hue, saturation, value)
 		end,
 	}
 end

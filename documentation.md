@@ -83,6 +83,7 @@ Creates a draggable window and returns a `Window` object.
 - `DisplayOrder` (number) default `500`
 - `Theme` (table) optional color overrides
 - `ToggleBind` (`Enum.KeyCode` or string) hide/unhide bind, default `Enum.KeyCode.RightShift`
+- `TabRailBottomInset` (number) optional bottom inset to keep left-bottom rounded corner clean
 - `LoadInAnimation` (table) window intro animation settings
   - `Enabled` (boolean)
   - `Duration` (number)
@@ -169,7 +170,7 @@ Returns controller:
 
 ## `Tab:ColorPicker({ Title, Default?, Callback? })`
 
-Adds an expandable RGB color picker.
+Adds an expandable rounded HSV color picker (saturation/value canvas + hue bar).
 
 Returns controller:
 

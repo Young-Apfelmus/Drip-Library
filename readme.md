@@ -9,6 +9,8 @@ Black/white Roblox UI library with smooth slow animations and Lucide tab icon su
 - Smaller default window size with responsive mobile-first sizing support
 - Lucide icon support for tabs through `icon "name"` syntax
 - Built-in controls: `Section`, `Label`, `Paragraph`, `Button`, `Toggle`, `Dropdown`, `ColorPicker`, `KeyBinder`
+- Graphical HSV `ColorPicker` (rounded saturation/value canvas + hue bar)
+- Profile card clips long usernames with smooth typewriter reveal
 
 ## Install / Load
 
