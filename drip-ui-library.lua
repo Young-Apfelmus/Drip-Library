@@ -17,6 +17,8 @@ local BASE_TWEEN = TweenInfo.new(0.42, Enum.EasingStyle.Quad, Enum.EasingDirecti
 local HOVER_TWEEN = TweenInfo.new(0.26, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local FAST_TWEEN = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local TOGGLE_TWEEN = TweenInfo.new(0.32, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+local DRAG_TWEEN = TweenInfo.new(0.34, Enum.EasingStyle.Quart, Enum.EasingDirection.Out, 0, false, 0.05)
+local INDICATOR_TWEEN = TweenInfo.new(0.46, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 
 local DEFAULT_THEME = {
 	Background = Color3.fromRGB(8, 8, 8),
@@ -175,6 +177,7 @@ function DripUI:CreateWindow(options)
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		BackgroundColor3 = theme.Background,
 		BorderSizePixel = 0,
+		ClipsDescendants = true,
 		Position = options.Position or UDim2.fromScale(0.5, 0.5),
 		Size = options.Size or UDim2.fromOffset(720, 450),
 		Parent = root,
@@ -230,9 +233,20 @@ function DripUI:CreateWindow(options)
 		Name = "TabRail",
 		BackgroundColor3 = theme.Surface,
 		BorderSizePixel = 0,
+		ClipsDescendants = true,
 		Position = UDim2.fromOffset(0, 54),
 		Size = UDim2.new(0, 192, 1, -54),
 		Parent = frame,
+	})
+	applyCorner(tabRail, 14)
+
+	make("Frame", {
+		Name = "RailTopFill",
+		BackgroundColor3 = theme.Surface,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.new(1, 0, 0, 14),
+		Parent = tabRail,
 	})
 
 	make("Frame", {
@@ -240,8 +254,8 @@ function DripUI:CreateWindow(options)
 		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 		BackgroundTransparency = 0.88,
 		BorderSizePixel = 0,
-		Position = UDim2.new(1, -1, 0, 0),
-		Size = UDim2.new(0, 1, 1, 0),
+		Position = UDim2.new(1, -1, 0, 8),
+		Size = UDim2.new(0, 1, 1, -16),
 		Parent = tabRail,
 	})
 
@@ -252,17 +266,30 @@ function DripUI:CreateWindow(options)
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		CanvasSize = UDim2.fromOffset(0, 0),
-		Position = UDim2.fromOffset(6, 6),
+		Position = UDim2.fromOffset(10, 8),
 		ScrollBarImageColor3 = Color3.fromRGB(255, 255, 255),
 		ScrollBarImageTransparency = 0.7,
 		ScrollBarThickness = 2,
-		Size = UDim2.new(1, -12, 1, -12),
+		Size = UDim2.new(1, -16, 1, -16),
 		Parent = tabRail,
 	})
 
+	local activeTabIndicator = make("Frame", {
+		Name = "ActiveTabIndicator",
+		AnchorPoint = Vector2.new(0, 0.5),
+		BackgroundColor3 = theme.Accent,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(5, 24),
+		Size = UDim2.fromOffset(3, 18),
+		Visible = false,
+		ZIndex = 3,
+		Parent = tabRail,
+	})
+	applyCorner(activeTabIndicator, 2)
+
 	local tabListLayout = make("UIListLayout", {
 		FillDirection = Enum.FillDirection.Vertical,
-		Padding = UDim.new(0, 6),
+		Padding = UDim.new(0, 3),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		Parent = tabList,
 	})
@@ -282,6 +309,7 @@ function DripUI:CreateWindow(options)
 	local dragging = false
 	local dragStart
 	local dragWindowPosition
+	local dragTween
 
 	topBar.InputBegan:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
@@ -295,6 +323,7 @@ function DripUI:CreateWindow(options)
 		input.Changed:Connect(function()
 			if input.UserInputState == Enum.UserInputState.End then
 				dragging = false
+				dragTween = nil
 			end
 		end)
 	end)
@@ -309,23 +338,41 @@ function DripUI:CreateWindow(options)
 		end
 
 		local delta = input.Position - dragStart
-		frame.Position = UDim2.new(
+		local targetPosition = UDim2.new(
 			dragWindowPosition.X.Scale,
 			dragWindowPosition.X.Offset + delta.X,
 			dragWindowPosition.Y.Scale,
 			dragWindowPosition.Y.Offset + delta.Y
 		)
+
+		if dragTween then
+			dragTween:Cancel()
+		end
+
+		dragTween = tween(frame, DRAG_TWEEN, {
+			Position = targetPosition,
+		})
 	end)
 
-	return setmetatable({
+	local windowObject = setmetatable({
 		_theme = theme,
 		_lucide = self._lucide,
 		_root = root,
 		_tabs = {},
+		_tabRail = tabRail,
 		_tabList = tabList,
+		_activeTabIndicator = activeTabIndicator,
 		_contentArea = contentArea,
 		_activeTab = nil,
 	}, Window)
+
+	tabList:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+		if windowObject._activeTab then
+			windowObject:_moveActiveIndicator(windowObject._activeTab, true)
+		end
+	end)
+
+	return windowObject
 end
 
 function Window:_tweenIconColor(iconObject, color)
@@ -379,6 +426,34 @@ function Window:_renderTabIcon(iconName, parent, iconSize)
 	return nil
 end
 
+function Window:_moveActiveIndicator(tabObject, instant)
+	if not tabObject or not self._activeTabIndicator or not self._tabRail then
+		return
+	end
+
+	local button = tabObject.TabButton
+	if not button then
+		return
+	end
+
+	local centerY = (button.AbsolutePosition.Y - self._tabRail.AbsolutePosition.Y) + (button.AbsoluteSize.Y * 0.5)
+	local target = {
+		Position = UDim2.fromOffset(5, math.floor(centerY + 0.5)),
+		Size = UDim2.fromOffset(3, math.max(14, button.AbsoluteSize.Y - 16)),
+		BackgroundTransparency = 0,
+	}
+
+	self._activeTabIndicator.Visible = true
+
+	if instant then
+		for key, value in pairs(target) do
+			self._activeTabIndicator[key] = value
+		end
+	else
+		tween(self._activeTabIndicator, INDICATOR_TWEEN, target)
+	end
+end
+
 function Window:_activateTab(tabObject)
 	if self._activeTab == tabObject then
 		return
@@ -399,18 +474,19 @@ function Window:_activateTab(tabObject)
 			end
 		end
 
-		tween(tab.Button, BASE_TWEEN, {
-			BackgroundTransparency = active and 0.82 or 0.96,
+		tween(tab.TabButton, BASE_TWEEN, {
+			BackgroundTransparency = active and 0.92 or 1,
 		})
 
-		tween(tab.Title, BASE_TWEEN, {
+		tween(tab.TitleLabel, BASE_TWEEN, {
 			TextColor3 = active and self._theme.TextStrong or self._theme.TextMuted,
 		})
 
-		self:_tweenIconColor(tab.Icon, active and self._theme.TextStrong or self._theme.TextMuted)
+		self:_tweenIconColor(tab.IconObject, active and self._theme.TextStrong or self._theme.TextMuted)
 	end
 
 	self._activeTab = tabObject
+	self:_moveActiveIndicator(tabObject, false)
 end
 
 function Window:Tab(nameOrOptions, maybeIcon)
@@ -429,22 +505,20 @@ function Window:Tab(nameOrOptions, maybeIcon)
 	local button = make("TextButton", {
 		Name = title .. "Button",
 		AutoButtonColor = false,
-		BackgroundColor3 = self._theme.Panel,
-		BackgroundTransparency = 0.96,
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		Size = UDim2.new(1, -4, 0, 44),
+		Size = UDim2.new(1, -6, 0, 38),
 		Text = "",
 		LayoutOrder = tabOrder,
 		Parent = self._tabList,
 	})
-	applyCorner(button, 10)
-	applyStroke(button, self._theme.StrokeTransparency)
 
 	local iconHolder = make("Frame", {
 		Name = "IconHolder",
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 10, 0.5, 0),
+		Position = UDim2.new(0, 12, 0.5, 0),
 		Size = UDim2.fromOffset(20, 20),
 		Parent = button,
 	})
@@ -456,7 +530,7 @@ function Window:Tab(nameOrOptions, maybeIcon)
 		Name = "Title",
 		BackgroundTransparency = 1,
 		Font = Enum.Font.Gotham,
-		Position = UDim2.new(0, 10 + iconPadding, 0, 0),
+		Position = UDim2.new(0, 12 + iconPadding, 0, 0),
 		Size = UDim2.new(1, -22 - iconPadding, 1, 0),
 		Text = title,
 		TextColor3 = self._theme.TextMuted,
@@ -516,21 +590,21 @@ function Window:Tab(nameOrOptions, maybeIcon)
 		_theme = self._theme,
 		_body = body,
 		_order = 0,
-		Button = button,
-		Title = titleLabel,
-		Icon = iconObject,
+		TabButton = button,
+		TitleLabel = titleLabel,
+		IconObject = iconObject,
 		Page = page,
 	}, Tab)
 
 	button.MouseEnter:Connect(function()
 		if self._activeTab ~= tabObject then
-			tween(button, HOVER_TWEEN, { BackgroundTransparency = 0.9 })
+			tween(button, HOVER_TWEEN, { BackgroundTransparency = 0.975 })
 		end
 	end)
 
 	button.MouseLeave:Connect(function()
 		if self._activeTab ~= tabObject then
-			tween(button, HOVER_TWEEN, { BackgroundTransparency = 0.96 })
+			tween(button, HOVER_TWEEN, { BackgroundTransparency = 1 })
 		end
 	end)
 
