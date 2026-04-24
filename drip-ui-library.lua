@@ -353,7 +353,8 @@ function DripUI:CreateWindow(options)
 	local railBottomInset = options.TabRailBottomInset or 0
 	local profileCardHeight = isMobile and 56 or 58
 	local profileBottomPadding = isMobile and 8 or 8
-	local tabListBottomPadding = profileCardHeight + profileBottomPadding + 6
+	local profileCardTopGap = isMobile and 14 or 16
+	local tabListBottomPadding = profileCardHeight + profileBottomPadding + profileCardTopGap
 	local defaultSize = isMobile and UDim2.fromScale(0.9, 0.74) or UDim2.fromOffset(620, 390)
 	local loadInConfig = makeLoadInConfig(options.LoadInAnimation or options.LoadIn or options.Animation)
 	local root = make("ScreenGui", {
@@ -482,6 +483,7 @@ function DripUI:CreateWindow(options)
 		ScrollBarImageTransparency = 0.7,
 		ScrollBarThickness = 2,
 		Size = UDim2.new(1, -14, 1, -tabListBottomPadding),
+		ZIndex = 1,
 		Parent = tabRail,
 	})
 
@@ -489,12 +491,13 @@ function DripUI:CreateWindow(options)
 	local profileCard = make("Frame", {
 		Name = "ProfileCard",
 		BackgroundColor3 = theme.Panel,
-		BackgroundTransparency = 0.86,
+		BackgroundTransparency = 0.24,
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 10, 1, -profileBottomPadding),
 		Size = UDim2.new(1, -20, 0, profileCardHeight),
+		ZIndex = 5,
 		Parent = tabRail,
 	})
 	applyCorner(profileCard, 6)
@@ -509,6 +512,7 @@ function DripUI:CreateWindow(options)
 		Size = UDim2.fromOffset(36, 36),
 		Image = "",
 		ImageColor3 = Color3.fromRGB(255, 255, 255),
+		ZIndex = 6,
 		Parent = profileCard,
 	})
 	applyCorner(avatarImage, 4)
@@ -524,6 +528,7 @@ function DripUI:CreateWindow(options)
 		TextSize = 12,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 6,
 		Parent = profileCard,
 	})
 
@@ -538,6 +543,7 @@ function DripUI:CreateWindow(options)
 		TextSize = 11,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 6,
 		Parent = profileCard,
 	})
 
