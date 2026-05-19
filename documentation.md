@@ -186,9 +186,7 @@ Supported mouse bindings:
 | Display | UserInputType |
 |---|---|
 | `RMB` | `MouseButton2` — Right click |
-| `Thumb` | `MouseButton3` — Middle / thumb |
-| `MB4` | `MouseButton4` — Side button back |
-| `MB5` | `MouseButton5` — Side button forward / Thumb 2 |
+| `Thumb` | `MouseButton3` — Middle / thumb click |
 
 > LMB is excluded (it's used to click the binder).  
 > Press `Escape` while listening to cancel without changing the binding.

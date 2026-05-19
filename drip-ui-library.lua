@@ -1608,14 +1608,10 @@ local MOUSE_BUTTON_NAMES = {
 	[Enum.UserInputType.MouseButton1] = "LMB",
 	[Enum.UserInputType.MouseButton2] = "RMB",
 	[Enum.UserInputType.MouseButton3] = "Thumb",
-	[Enum.UserInputType.MouseButton4] = "MB4",
-	[Enum.UserInputType.MouseButton5] = "MB5",
 }
 local CAPTURABLE_MOUSE_BUTTONS = {
 	Enum.UserInputType.MouseButton2,
 	Enum.UserInputType.MouseButton3,
-	Enum.UserInputType.MouseButton4,
-	Enum.UserInputType.MouseButton5,
 }
 
 -- A binding is { kind = "key"|"mouse", value = EnumItem, name = string }
