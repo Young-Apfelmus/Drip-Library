@@ -186,6 +186,48 @@ Returns controller:
 - `controller:Set(Enum.KeyCode|string)`
 - `controller:Get()` -> `Enum.KeyCode`
 
+## `Tab:Slider({ Title, Min?, Max?, Step?, Default?, Suffix?, Description?, Callback? })`
+
+Adds a draggable horizontal slider with a fill bar, knob, and live value label.
+
+Config fields:
+
+- `Title` (string)
+- `Description` (string, optional) — adds a subtitle line and increases row height
+- `Min` (number, default `0`)
+- `Max` (number, default `100`)
+- `Step` (number, default `1`) — snapping increment; supports decimals (e.g. `0.5`)
+- `Default` (number, default `Min`)
+- `Suffix` (string, optional) — appended to the value label, e.g. `" px"` or `"%"`
+- `Callback(value)` — fires on every drag tick with the snapped number value
+
+Returns controller:
+
+- `controller:Set(value, fireCallback?)` — programmatically set the value
+- `controller:Get()` → current snapped number value
+
+Example:
+
+```lua
+local smooth = tab:Slider({
+    Title    = "Smooth Speed",
+    Description = "1 = slow · 30 = instant",
+    Min      = 1,
+    Max      = 30,
+    Step     = 1,
+    Default  = 10,
+    Callback = function(v)
+        cfg.smoothSpeed = v
+    end,
+})
+
+-- Read or set later:
+print(smooth:Get())
+smooth:Set(15)
+```
+
+---
+
 ## `Tab:Paragraph({ Title, Text })`
 
 Adds a multi-line block with title + wrapped body text.

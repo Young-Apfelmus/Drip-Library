@@ -67,6 +67,63 @@ main:KeyBinder({
 	end,
 })
 
+-- ── Slider examples ───────────────────────────────────────
+local sliders = window:Tab("Sliders", icon "sliders-horizontal")
+sliders:Section("Basic Slider")
+
+sliders:Slider({
+	Title   = "Volume",
+	Min     = 0,
+	Max     = 100,
+	Step    = 1,
+	Default = 50,
+	Suffix  = "%",
+	Callback = function(v)
+		print("Volume:", v)
+	end,
+})
+
+sliders:Slider({
+	Title       = "Render Distance",
+	Description = "Maximum world render distance in studs",
+	Min     = 64,
+	Max     = 2048,
+	Step    = 64,
+	Default = 512,
+	Suffix  = " studs",
+	Callback = function(v)
+		print("Render distance:", v)
+	end,
+})
+
+sliders:Slider({
+	Title   = "Smoothness",
+	Min     = 1,
+	Max     = 30,
+	Step    = 1,
+	Default = 10,
+	Callback = function(v)
+		print("Smoothness:", v)
+	end,
+})
+
+sliders:Section("Controller example")
+local mySlider = sliders:Slider({
+	Title   = "Controlled Slider",
+	Min     = 0,
+	Max     = 10,
+	Step    = 0.5,
+	Default = 5,
+})
+
+sliders:Button({
+	Title    = "Reset to 5",
+	Callback = function()
+		mySlider:Set(5)
+		print("Reset! Current:", mySlider:Get())
+	end,
+})
+
 local settings = window:Tab({
 	Title = "Settings",
 	Icon = icon "settings",

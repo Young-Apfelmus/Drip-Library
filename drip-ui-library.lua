@@ -1919,4 +1919,207 @@ function Tab:Toggle(config)
 	}
 end
 
+--[[
+	Tab:Slider(config)
+	config fields:
+	  Title       (string)
+	  Description (string, optional)
+	  Min         (number, default 0)
+	  Max         (number, default 100)
+	  Step        (number, default 1)  -- snapping increment
+	  Default     (number, default Min)
+	  Suffix      (string, optional)   -- appended to value label e.g. " px"
+	  Callback    (function(value))
+	Returns controller:
+	  :Set(value, fireCallback?)
+	  :Get() -> number
+--]]
+function Tab:Slider(config)
+	local options   = type(config) == "table" and config or { Title = tostring(config) }
+	local title     = tostring(options.Title or options.title or "Slider")
+	local desc      = options.Description or options.description
+	local minVal    = tonumber(options.Min   or options.min   or 0)
+	local maxVal    = tonumber(options.Max   or options.max   or 100)
+	local step      = tonumber(options.Step  or options.step  or 1)
+	local suffix    = tostring(options.Suffix or options.suffix or "")
+	local callback  = options.Callback or options.callback
+	local height    = desc and 72 or 54
+	local current   = math.clamp(
+		tonumber(options.Default or options.default or minVal),
+		minVal, maxVal
+	)
+
+	-- snap to step
+	local function snap(v)
+		local snapped = math.floor((v - minVal) / step + 0.5) * step + minVal
+		return math.clamp(snapped, minVal, maxVal)
+	end
+
+	local holder = self:_createItemHolder(height)
+
+	-- Title
+	make("TextLabel", {
+		BackgroundTransparency = 1,
+		Font     = Enum.Font.GothamSemibold,
+		Position = UDim2.fromOffset(12, desc and 9 or 14),
+		Size     = UDim2.new(0.6, -12, 0, 14),
+		Text     = title,
+		TextColor3     = self._theme.TextStrong,
+		TextSize       = 13,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = holder,
+	})
+
+	if desc then
+		make("TextLabel", {
+			BackgroundTransparency = 1,
+			Font     = Enum.Font.Gotham,
+			Position = UDim2.fromOffset(12, 28),
+			Size     = UDim2.new(0.7, -12, 0, 18),
+			Text     = tostring(desc),
+			TextColor3     = self._theme.TextMuted,
+			TextSize       = 11,
+			TextWrapped    = true,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Top,
+			Parent = holder,
+		})
+	end
+
+	-- Value label (right side)
+	local valLabel = make("TextLabel", {
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(1, 0),
+		Font     = Enum.Font.GothamSemibold,
+		Position = UDim2.new(1, -12, 0, desc and 9 or 14),
+		Size     = UDim2.new(0.35, 0, 0, 14),
+		Text     = tostring(current) .. suffix,
+		TextColor3     = self._theme.TextMuted,
+		TextSize       = 12,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		Parent = holder,
+	})
+
+	-- Track background
+	local trackY  = desc and 50 or 36
+	local trackBg = make("Frame", {
+		AnchorPoint      = Vector2.new(0, 0),
+		BackgroundColor3 = Color3.fromRGB(40, 40, 40),
+		BorderSizePixel  = 0,
+		Position = UDim2.new(0, 12, 0, trackY),
+		Size     = UDim2.new(1, -24, 0, 5),
+		Parent   = holder,
+	})
+	applyCorner(trackBg, 3)
+
+	-- Fill bar
+	local trackFill = make("Frame", {
+		BackgroundColor3 = self._theme.Accent,
+		BorderSizePixel  = 0,
+		Size     = UDim2.fromScale(0, 1),
+		Parent   = trackBg,
+	})
+	applyCorner(trackFill, 3)
+
+	-- Knob
+	local knob = make("Frame", {
+		AnchorPoint      = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = self._theme.Accent,
+		BorderSizePixel  = 0,
+		Position = UDim2.fromScale(0, 0.5),
+		Size     = UDim2.fromOffset(13, 13),
+		ZIndex   = 3,
+		Parent   = trackBg,
+	})
+	applyCorner(knob, 7)
+	applyStroke(knob, 0.6)
+
+	-- Transparent full-width drag button
+	local dragBtn = make("TextButton", {
+		AutoButtonColor  = false,
+		BackgroundTransparency = 1,
+		Size   = UDim2.new(1, 0, 0, height),
+		Position = UDim2.fromOffset(0, 0),
+		Text   = "",
+		ZIndex = 4,
+		Parent = holder,
+	})
+
+	local function frac()
+		return (maxVal == minVal) and 0 or (current - minVal) / (maxVal - minVal)
+	end
+
+	local function applyVisual(animated)
+		local f = frac()
+		valLabel.Text = tostring(current) .. suffix
+		if animated then
+			tween(trackFill, FAST_TWEEN, { Size = UDim2.fromScale(f, 1) })
+			tween(knob,      FAST_TWEEN, { Position = UDim2.new(f, 0, 0.5, 0) })
+		else
+			trackFill.Size     = UDim2.fromScale(f, 1)
+			knob.Position      = UDim2.new(f, 0, 0.5, 0)
+		end
+	end
+
+	local function setValue(v, fireCallback)
+		current = snap(v)
+		applyVisual(true)
+		if fireCallback then
+			safeCallback(callback, current)
+		end
+	end
+
+	applyVisual(false)
+
+	-- Drag logic
+	local dragging = false
+
+	local function getValueFromInput(inputPos)
+		local absPos  = trackBg.AbsolutePosition
+		local absSize = trackBg.AbsoluteSize
+		local relX    = math.clamp((inputPos.X - absPos.X) / absSize.X, 0, 1)
+		return relX * (maxVal - minVal) + minVal
+	end
+
+	dragBtn.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			setValue(getValueFromInput(input.Position), true)
+		end
+	end)
+
+	game:GetService("UserInputService").InputChanged:Connect(function(input)
+		if not dragging then return end
+		if input.UserInputType == Enum.UserInputType.MouseMovement
+			or input.UserInputType == Enum.UserInputType.Touch then
+			setValue(getValueFromInput(input.Position), true)
+		end
+	end)
+
+	game:GetService("UserInputService").InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+
+	-- Hover effects on the holder
+	dragBtn.MouseEnter:Connect(function()
+		tween(holder, HOVER_TWEEN, { BackgroundTransparency = 0.84 })
+	end)
+	dragBtn.MouseLeave:Connect(function()
+		tween(holder, HOVER_TWEEN, { BackgroundTransparency = 0.9 })
+	end)
+
+	return {
+		Set = function(_, v, fire)
+			setValue(v, fire ~= false)
+		end,
+		Get = function()
+			return current
+		end,
+	}
+end
+
 return DripUI
