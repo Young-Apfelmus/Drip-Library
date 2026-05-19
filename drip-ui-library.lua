@@ -1603,13 +1603,38 @@ function Tab:ColorPicker(config)
 	}
 end
 
+-- Mouse button display names and UserInputTypes supported by KeyBinder
+local MOUSE_BUTTON_NAMES = {
+	[Enum.UserInputType.MouseButton1] = "LMB",
+	[Enum.UserInputType.MouseButton2] = "RMB",
+	[Enum.UserInputType.MouseButton3] = "Thumb",
+	[Enum.UserInputType.MouseButton4] = "MB4",
+	[Enum.UserInputType.MouseButton5] = "MB5",
+}
+local CAPTURABLE_MOUSE_BUTTONS = {
+	Enum.UserInputType.MouseButton2,
+	Enum.UserInputType.MouseButton3,
+	Enum.UserInputType.MouseButton4,
+	Enum.UserInputType.MouseButton5,
+}
+
+-- A binding is { kind = "key"|"mouse", value = EnumItem, name = string }
+local function makeKeyBinding(keyCode)
+	local kc = parseKeyCode(keyCode, DEFAULT_KEYBINDER_BIND)
+	return { kind = "key", value = kc, name = kc.Name }
+end
+
+local function makeMouseBinding(inputType)
+	return { kind = "mouse", value = inputType, name = MOUSE_BUTTON_NAMES[inputType] or inputType.Name }
+end
+
 function Tab:KeyBinder(config)
 	local options = type(config) == "table" and config or { Title = tostring(config) }
 	local title = tostring(options.Title or options.title or "KeyBinder")
 	local callback = options.Callback or options.callback
 	local changedCallback = options.ChangedCallback or options.Changed or options.changed
 	local listening = false
-	local boundKey = parseKeyCode(options.Default or options.default or options.Key or options.key, DEFAULT_KEYBINDER_BIND)
+	local binding = makeKeyBinding(options.Default or options.default or options.Key or options.key)
 
 	local holder = self:_createItemHolder(44)
 	local captureButton = make("TextButton", {
@@ -1646,16 +1671,19 @@ function Tab:KeyBinder(config)
 	})
 	applyCorner(keyLabel, 6)
 
-	local function setBoundKey(nextKey, fireChanged)
-		boundKey = parseKeyCode(nextKey, DEFAULT_KEYBINDER_BIND)
+	local function applyBinding(newBinding, fireChanged)
+		binding = newBinding
 		listening = false
-		keyLabel.Text = boundKey.Name
+		keyLabel.Text = binding.name
 		keyLabel.TextColor3 = self._theme.Text
 		if fireChanged then
-			safeCallback(changedCallback, boundKey)
+			safeCallback(changedCallback, binding)
 		end
 	end
 
+	-- Clicking the label enters listening mode.
+	-- LMB itself is NOT capturable (it's used to click the button),
+	-- but all other mouse buttons and all keyboard keys are.
 	captureButton.MouseButton1Click:Connect(function()
 		listening = true
 		keyLabel.Text = "..."
@@ -1670,36 +1698,67 @@ function Tab:KeyBinder(config)
 		tween(holder, HOVER_TWEEN, { BackgroundTransparency = 0.9 })
 	end)
 
+	-- Keyboard capture
 	local keyConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-		if input.UserInputType ~= Enum.UserInputType.Keyboard then
+		if input.UserInputType == Enum.UserInputType.Keyboard then
+			if listening then
+				if input.KeyCode == Enum.KeyCode.Escape then
+					-- Escape cancels listening without changing binding
+					listening = false
+					keyLabel.Text = binding.name
+					keyLabel.TextColor3 = self._theme.Text
+				else
+					applyBinding(makeKeyBinding(input.KeyCode), true)
+				end
+				return
+			end
+			-- Fire callback when bound key is pressed during normal use
+			if not gameProcessed
+				and not UserInputService:GetFocusedTextBox()
+				and binding.kind == "key"
+				and input.KeyCode == binding.value then
+				safeCallback(callback, binding)
+			end
 			return
 		end
 
+		-- Mouse button capture (RMB, Thumb, MB4, MB5)
 		if listening then
-			setBoundKey(input.KeyCode, true)
-			return
+			for _, ut in ipairs(CAPTURABLE_MOUSE_BUTTONS) do
+				if input.UserInputType == ut then
+					applyBinding(makeMouseBinding(ut), true)
+					return
+				end
+			end
 		end
 
-		if UserInputService:GetFocusedTextBox() then
-			return
-		end
-
-		if gameProcessed then
-			return
-		end
-
-		if input.KeyCode == boundKey then
-			safeCallback(callback, boundKey)
+		-- Fire callback when bound mouse button is pressed during normal use
+		if not gameProcessed
+			and not UserInputService:GetFocusedTextBox()
+			and binding.kind == "mouse"
+			and input.UserInputType == binding.value then
+			safeCallback(callback, binding)
 		end
 	end)
 	self._window:_trackConnection(keyConnection)
 
 	return {
-		Set = function(_, nextKey)
-			setBoundKey(nextKey, true)
+		-- Set accepts: Enum.KeyCode, Enum.UserInputType (mouse), or a binding table
+		Set = function(_, v, fireChanged)
+			if typeof(v) == "EnumItem" then
+				if v.EnumType == Enum.UserInputType then
+					applyBinding(makeMouseBinding(v), fireChanged ~= false)
+				else
+					applyBinding(makeKeyBinding(v), fireChanged ~= false)
+				end
+			elseif type(v) == "table" and v.kind then
+				applyBinding(v, fireChanged ~= false)
+			else
+				applyBinding(makeKeyBinding(v), fireChanged ~= false)
+			end
 		end,
 		Get = function()
-			return boundKey
+			return binding
 		end,
 	}
 end

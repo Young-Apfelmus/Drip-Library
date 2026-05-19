@@ -179,12 +179,41 @@ Returns controller:
 
 ## `Tab:KeyBinder({ Title, Default?, Callback?, ChangedCallback? })`
 
-Adds a keybind control that can capture and update keyboard binds.
+Adds a keybind control that captures **keyboard keys and mouse buttons**.
+
+Supported mouse bindings:
+
+| Display | UserInputType |
+|---|---|
+| `RMB` | `MouseButton2` — Right click |
+| `Thumb` | `MouseButton3` — Middle / thumb |
+| `MB4` | `MouseButton4` — Side button back |
+| `MB5` | `MouseButton5` — Side button forward / Thumb 2 |
+
+> LMB is excluded (it's used to click the binder).  
+> Press `Escape` while listening to cancel without changing the binding.
+
+The binding is a table: `{ kind = "key"|"mouse", value = EnumItem, name = string }`
 
 Returns controller:
 
-- `controller:Set(Enum.KeyCode|string)`
-- `controller:Get()` -> `Enum.KeyCode`
+- `controller:Set(Enum.KeyCode | Enum.UserInputType | bindingTable)`
+- `controller:Get()` → binding table
+
+`ChangedCallback(binding)` receives the full binding table.
+
+```lua
+aTab:KeyBinder({
+    Title   = "Aim Key",
+    Default = Enum.KeyCode.Q,
+    ChangedCallback = function(binding)
+        -- binding.kind  = "key" or "mouse"
+        -- binding.value = EnumItem
+        -- binding.name  = "Q", "RMB", "Thumb", "MB4", "MB5" …
+        cfg.aimBinding = binding
+    end,
+})
+```
 
 ## `Tab:Slider({ Title, Min?, Max?, Step?, Default?, Suffix?, Description?, Callback? })`
 
