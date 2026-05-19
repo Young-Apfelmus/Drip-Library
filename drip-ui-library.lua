@@ -1659,7 +1659,7 @@ function Tab:KeyBinder(config)
 		BorderSizePixel = 0,
 		Position = UDim2.new(1, -72, 0, 9),
 		Size = UDim2.fromOffset(58, 24),
-		Text = boundKey.Name,
+		Text = binding.name,
 		TextColor3 = self._theme.Text,
 		TextSize = 11,
 		Font = Enum.Font.GothamSemibold,
